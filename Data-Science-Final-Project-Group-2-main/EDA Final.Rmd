@@ -1,0 +1,489 @@
+---
+title: "Exploratory Data Analysis"
+author: "STOR 320.02 Group 2 (Ex: STOR 320.01 Group 12)"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+library(caTools)
+library(caret)
+
+
+#setwd("C:/Users/dylan/Documents/GitHub/Data-Science-Final-Project-Group-2")
+hhadata2015.untidy = read.csv("CSVs/medicare-home-health-agency-hha-hhrg-aggregate-report-cy-2015.csv")
+hhadatastates2015.untidy = read.csv("CSVs/medicare-home-health-agency-hha-hhrg-by-state-aggregate-report-cy-2015.csv")
+hhadatahhrg2015.untidy = read.csv("CSVs/medicare-home-health-agency-hha-provider-aggregate-report-cy-2015.csv")
+hha_2015 <- read.csv("CSVs/medicare-home-health-agency-hha-provider-aggregate-report-cy-2015.csv")
+hha_2014 <- read.csv("CSVs/medicare-home-health-agency-hha-provider-aggregate-report-cy-2014.csv")
+hha_2013 <- read.csv("CSVs/medicare-home-health-provider-aggregate-table-cy-2013.csv")
+
+```
+
+# Creator/Deliverier: Dylan Francisco
+
+### Q1: Looking at the Home Health Agency Aggregate report, is there a relationship between the HHRG’s and total payment from Medicare?
+
+```{r}
+hhadata2015 <- hhadata2015.untidy %>% 
+  select("HHRG", "Total.Episodes", "Total.HHA.Medicare.Payment.Amount", "Average.HHA.Medicare.Payment.Amount")
+
+
+ggplot(hhadata2015, aes(x = HHRG, y = Total.HHA.Medicare.Payment.Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(y = "Average Medicare Payment") +
+  scale_x_discrete(guide = guide_axis(n.dodge=15)) +
+  theme_minimal()
+```
+
+### Q2: Is there a relationship between the state's locations and the total number of episodes relating to an HHRG?
+
+```{r}
+hhaStateData2015 <- hhadatastates2015.untidy %>% 
+  select("State", "Average.HHA.Charge.Amount", "Total.Episodes" )
+
+ggplot(hhaStateData2015, aes(x = State, y = Total.Episodes)) +
+  geom_point() +
+  labs(y = "Total Episodes per HHRG") +
+  scale_x_discrete(guide = guide_axis(n.dodge=2)) +
+  theme_minimal()
+```
+
+# Interpreter: Daniela Juarez Gonzalez
+
+### Q1: Is there a relationship between the state of the location of the home agency and the average of the charges that the home health agency submitted for non - LUPA episodes?
+
+```{r}
+ggplot(hhaStateData2015, aes(x= State, y = Average.HHA.Charge.Amount)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2)) +
+  theme_minimal()
+```
+
+### Q2:  How does the HHRG relate to the average amount that medicare paid for non-LUPA episodes adjusted for geographical differences in payment?
+
+```{r}
+ggplot(hhadata2015, aes(x=HHRG, y = Average.HHA.Medicare.Payment.Amount)) +
+  geom_point() +
+  scale_x_discrete(guide = guide_axis(n.dodge=15))
+```
+
+# Orator: Elvis Atitsoabui
+
+### Q1: Does an increase in the number of beneficiaries with Cancer or Atrial Fibrillation increase the average hha medicare payment amount?
+
+```{r}
+hha_2015 %>% rename( "distinct"="Distinct.Beneficiaries..non.LUPA.") %>% mutate(actual_with_cancer =Percent.of.Beneficiaries.with.Cancer * .01 * distinct) %>%ggplot() + geom_point(aes(x = actual_with_cancer, y=Total.HHA.Charge.Amount..non.LUPA.)) +
+  labs(x = "Number People with Cancer", y = "Total HHA Charge Non-LUPA")
+
+hha_2015 %>% rename( "distinct"="Distinct.Beneficiaries..non.LUPA.") %>% mutate(actual_with_Atrial.Fibrillation =Percent.of.Beneficiaries.with.Atrial.Fibrillation * .01 * distinct) %>%ggplot() + geom_point(aes(x = actual_with_Atrial.Fibrillation, y=Total.HHA.Charge.Amount..non.LUPA.))+
+  labs(x = "Number People with Atrial Fibrillation", y = "Total HHA Charge Non-LUPA")
+
+```
+
+### Q2:  Using the provider ID dataset, do providers that have more females over males by at least 10 tend to recieve more funding from Medicare?
+
+```{r}
+hhaData2015Females <-  hhadatahhrg2015.untidy %>% 
+  select("Provider.ID", "Male.Beneficiaries", "Female.Beneficiaries", "Total.HHA.Medicare.Payment.Amount..non.LUPA." ) %>% 
+  filter(!Male.Beneficiaries>Female.Beneficiaries) %>% 
+  filter(!Female.Beneficiaries - Male.Beneficiaries < 10) %>% 
+  transmute(Females = "Females", Average = mean(Total.HHA.Medicare.Payment.Amount..non.LUPA.))
+
+  
+hhaData2015Males <-  hhadatahhrg2015.untidy %>% 
+  select("Provider.ID", "Male.Beneficiaries", "Female.Beneficiaries", "Total.HHA.Medicare.Payment.Amount..non.LUPA." ) %>% 
+  filter(Male.Beneficiaries>Female.Beneficiaries) %>% 
+  filter(!Male.Beneficiaries - Female.Beneficiaries < 10) %>% 
+  transmute(Males = "Males", Average = mean(Total.HHA.Medicare.Payment.Amount..non.LUPA.))
+
+
+MalesVFemales <- tibble(
+  Sex = c("More Males", "More Females"),
+  Average_Paid_By_Medicare = c("$918,996.2", "$2,191,278")
+
+  
+)
+
+
+MalesVFemaleshtml <- kable(MalesVFemales, format = "html", caption = "Average paid by Medicare for Home Health Agencies based on if more Males or Female Beneficiaries are Present by 10")
+MalesVFemaleshtml
+
+```
+
+
+# Follow-up Questions
+
+### New Questions Based Off Initial Investigation
+
+- Q1: How does the relationship between HHRG and the total number of episodes help explain the difference between the average payment from medicare?
+- Q2: Does a certain HHRG have more prevalence across states or does it differ? What could be the reasoning for certain states to have more of a certain HHRG than others?
+- Q3: What is the trend of total cost of HHA for provider across 2013-2015?
+- Q4: What is the relationship between the difference in number of males and females at specific provider ID and total HHA medicare payment amount?
+### Investigation of Follow-up Questions
+
+GIVE WHAT 2 QUESTIONS YOU ATTEMPTED TO INVESTIGATE FURTHER IN COMPLETE SENTENCES (*Example:* Our group decided to investigate Q2 and Q4 in further detail.)
+
+### Our group attempted to further investigate Q3 and Q4.
+
+SHOW AT LEAST 2 TABLES OR FIGURES BELOW THAT EXPLORE ANSWERS FOR THE QUESTIONS YOU ARE INVESTIGATING FURTHER.
+
+```{r}
+hha_2015_q2 <- hha_2015 %>% select( (1:5), (16:19), 37)
+
+hha_2014_q2 <- hha_2014%>% select( (1:5), (16:19), 37) %>% rename("Total.HHA.Charge.Amount..non.LUPA_2014" = "Total.HHA.Charge.Amount..non.LUPA.") %>% select(Provider.ID, Total.HHA.Charge.Amount..non.LUPA_2014)
+
+hha_2013_q2 <- hha_2013%>% select( (1:5), (16:19), 37) %>% rename("Total.HHA.Charge.Amount..non.LUPA_2013" = "Total.HHA.Charge.Amount..non.LUPA.") %>% select(Provider.ID, Total.HHA.Charge.Amount..non.LUPA_2013)
+ 
+hha_allyear<- hha_2015_q2 %>% inner_join(hha_2014_q2, "Provider.ID") %>% inner_join(hha_2013_q2, "Provider.ID") %>% select((1:6), (11:12)) %>% rename("2015" = "Total.HHA.Charge.Amount..non.LUPA.", "2014" = "Total.HHA.Charge.Amount..non.LUPA_2014", "2013" = "Total.HHA.Charge.Amount..non.LUPA_2013")
+
+hha_allyear_graph <- hha_allyear %>% gather(`2015`, `2013`, `2014`, key  = Year, value = HHA_charge, convert = TRUE)
+
+ggplot(hha_allyear_graph) + geom_line(aes(x=Year,y=HHA_charge, group = Provider.ID)) + guides(color=F) +
+ scale_x_discrete(breaks=c(2013, 2014, 2015),labels=c(2013, 2014, 2015)) + theme_minimal() +
+  labs(x = "Year (2013-2015)", y = "Total HHA Charge Non-LUPA")
+
+```
+
+```{r}
+hhaData2015.F2 <- hhadatahhrg2015.untidy %>% 
+  select("Agency.Name", "Total.HHA.Medicare.Payment.Amount..non.LUPA.", "Female.Beneficiaries", "Male.Beneficiaries") %>% 
+  mutate(Differnece_In_Males_and_Females = Male.Beneficiaries - Female.Beneficiaries) %>% 
+  arrange(desc(Differnece_In_Males_and_Females))
+
+ggplot(hhaData2015.F2, aes(x = Differnece_In_Males_and_Females, y = Total.HHA.Medicare.Payment.Amount..non.LUPA.)) +
+  geom_line() +
+  labs(x = "Difference in Males and Females per HHA", y = "HHA Medicare Payment Non-LUPA")
+
+
+```
+
+# Summary
+
+GIVE A 2 PARAGRAPH SUMMARY. 
+
+PARAGRAPH 1 SHOULD DESCRIBE WHAT YOU LEARNED ABOUT YOUR DATA FROM INVESTIGATING THE INITIAL QUESTIONS. DID YOU FIND ANYTHING UNUSUAL IN YOUR DATA? DID ANYTHING SURPRISE YOU? WHICH OF THE INITIAL QUESTIONS WERE HELPFUL IN LEADING YOU TO MORE QUESTIONS?
+
+While exploring data we found and made many different observations about our dataset. One of the first main discoveries was the differences between the various csv files that were included in our dataset. For example, while the datasets may look similar, there are special sets grouped by various variables such as state, provider id, HHRG, and more. We were able to use a variety of these datasets to create our tables and figures for our initial questions. These also helped us create new, more complex follow-up questions that were based on more specific details from the datasets. The dataset that was grouped by state was especially helpful in creating follow-up questions as it allowed us to observe certain variables depending on the state. Exploring the data also made it more clear what a HHRG was, explaining that the reason HHRG's with a higher leading number tend to cost more money to treat, since the leading number is based on the number of visits that HHRG has needed.We also noticed that the states all seemed to have a similar average for how much the HHA was charging.
+
+
+PARAGRAPH 2 SHOULD SUMMARIZE WHAT YOU LEARNED FROM INVESTIGATING THE FOLLOW-UP QUESTIONS. WHY ARE THESE FOLLOW-UP QUESTIONS INTERESTING FOR INVESTIGATION? DESCRIBE THE TABLES/FIGURES YOU USED TO EXPLORE ANSWERS TO THESE FOLLOW-UP QUESTIONS? WHAT DID YOU LEARN FROM THE TABLES/FIGURES REGARDING THE FOLLOW-UP QUESTIONS YOU PROPOSED?
+
+
+We learned a lot from investigating our follow-up questions regarding our datasets. When looking into our first follow-up question, thinking about a plot that would show all of the data we had was a hard question. When thinking about 2-D plots, it was difficult to find one that would fit all of the observations we had. We think this question is interesting because we can show the trend throughout years on how pricing has changed for HHA's. Our second question was also difficult because of the way the dataset divided the male and female categories. Since the dataset was grouped by the Provider ID, the variables for male beneficiaries and female beneficiaries did not tell us specifically how much of the total charge went to each sex. We thought to use the difference, where a positive number represents that many more males at a HHA and a negative number represents that many more females. We used a line graph to show how the difference in sex at each provider was related to the total medicare payment.
+
+
+```{r}
+MAE.func=function(actual,predict){
+  MAE=mean(abs(actual-predict))
+  return(MAE)
+}
+
+```
+
+
+
+
+```{r}
+#Seperating the HHRG Description into new variables
+hhadata2015.seperated <- hhadata2015.untidy %>%
+  separate(col = HHRG.Description, into = c("HHRG.Description", "Therapies", "Clinical_Severity_Level", "Functional_Severity_Level", "Service_Severity_Level"),
+           sep = ",", remove = FALSE, extra = "drop") 
+hhadata2015.seperated$Clinical_Severity_Level <- as.numeric(gsub("\\D", "", hhadata2015.seperated$Clinical_Severity_Level))
+hhadata2015.seperated$Functional_Severity_Level <- as.numeric(gsub("\\D", "", hhadata2015.seperated$Functional_Severity_Level))
+hhadata2015.seperated$Service_Severity_Level <- as.numeric(gsub("\\D", "", hhadata2015.seperated$Service_Severity_Level)) 
+  
+
+hhadata2015.seperated <- hhadata2015.seperated %>% 
+  select("HHRG","HHRG.Description" ,"Therapies", "Clinical_Severity_Level", "Functional_Severity_Level", "Service_Severity_Level", "Total.Episodes", "Average.HHA.Medicare.Payment.Amount", "Total.HHA.Medicare.Payment.Amount") 
+```
+
+
+
+```{r}
+
+col_names <- c("HHRG","Expected Therapy Visits", "Clinical Severity Level", "Functional Status Level",
+               "Service Utilization Level", "Total HHA Medicare Payment Amount" ,"Total Episodes", "Average HHA Medicare Payment Amount")
+
+hhadata2015.seperated_renamed <- hhadata2015.seperated %>%
+  select("HHRG", "Therapies", "Clinical_Severity_Level", "Functional_Severity_Level", "Service_Severity_Level", "Total.HHA.Medicare.Payment.Amount" ,"Total.Episodes", "Average.HHA.Medicare.Payment.Amount") %>% 
+  setNames(col_names) %>% 
+  slice(1:10)
+
+
+pretty_kable_table <- kable(hhadata2015.seperated_renamed, format = "html", caption = "HHRG Aggregation Data 2015 (First 10 rows)") 
+
+
+
+
+cat(pretty_kable_table, file = "OG Data.html")
+
+```
+
+
+```{r, eval = F}
+#creating summaries of the different serverity levels
+average_amt_by_service_severity <- hhadata2015.seperated %>%
+  group_by(Service_Severity_Level) %>%
+  summarize(Average_Amount_Provided_by_Medicare = sum(Total.HHA.Medicare.Payment.Amount) / sum(Distinct.Beneficiaries))
+average_amt_by_clincical_severity <- hhadata2015.seperated %>%
+  group_by(Clinical_Severity_Level) %>%
+  summarize(Average_Amount_Provided_by_Medicare = sum(Total.HHA.Medicare.Payment.Amount) / sum(Distinct.Beneficiaries))
+average_amt_by_functional_severity <- hhadata2015.seperated %>%
+  group_by(Functional_Severity_Level) %>%
+  summarize(Average_Amount_Provided_by_Medicare = sum(Total.HHA.Medicare.Payment.Amount) / sum(Distinct.Beneficiaries))
+
+average_amt_by_clincical_severity
+average_amt_by_functional_severity
+average_amt_by_service_severity
+
+```
+
+```{r, warning = F}
+set.seed(112)  
+
+rmse_values_severities <- c()
+rmse_values_empty <- c()
+rmse_values_service <-  c()
+rmse_values_functional <- c()
+rmse_values_clinical <- c()
+rmse_values_therapies <- c()
+rmse_values_therapies_clinical <-  c()
+rmse_values_therapies_functional <- c()
+rmse_values_therapies_service <- c()
+rmse_values_all_var <- c()
+
+
+#Loop that removes each row, does the lm and predictions for the different models
+
+for (i in 1:nrow(hhadata2015.seperated)) {
+  #Model using the 3 different severities 
+  row_removed <- hhadata2015.seperated[-i, ]
+  
+  lm_model_serverties <- lm(Average.HHA.Medicare.Payment.Amount ~ Service_Severity_Level + 
+                            Functional_Severity_Level + Clinical_Severity_Level,
+                            data =  row_removed)
+  prediction_severities <- predict(lm_model_serverties, newdata = hhadata2015.seperated[i, ])
+  rmse_severities <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_severities)^2)
+  rmse_values_severities <- c(rmse_values_severities, rmse_severities)
+  hhadata2015.seperated$RMSE_Severities[i] <- rmse_severities
+  hhadata2015.seperated$prediction_severities[i] <- prediction_severities
+  
+  
+  #Empty model
+  lm_model_empty <- lm(Average.HHA.Medicare.Payment.Amount ~ 1, data = row_removed)
+  prediction_empty <- predict(lm_model_empty, newdata = hhadata2015.seperated[i, ])
+  rmse_empty <-  ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_empty)^2)
+  rmse_values_empty <- c(rmse_values_empty, rmse_empty)
+  hhadata2015.seperated$RMSE_Empty[i] <- rmse_empty
+  hhadata2015.seperated$prediction_empty[i] <- prediction_empty 
+  
+  #Model using only Service Severity
+  lm_model_service <- lm(Average.HHA.Medicare.Payment.Amount ~ Service_Severity_Level, data = row_removed)
+  prediction_service <- predict(lm_model_service, newdata = hhadata2015.seperated[i, ])
+  rmse_service <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_service)^2)
+  rmse_values_service <- c(rmse_values_service, rmse_service)
+  hhadata2015.seperated$RMSE_Service_Severity[i] <- rmse_service
+  hhadata2015.seperated$prediction_service[i] <- prediction_service
+  
+  #Model using only Functional Severity
+  lm_model_functional <- lm(Average.HHA.Medicare.Payment.Amount ~ Functional_Severity_Level, data = row_removed)
+  prediction_functional <- predict(lm_model_functional, newdata = hhadata2015.seperated[i, ])
+  rmse_functional <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_functional)^2)
+  rmse_values_functional <- c(rmse_values_functional, rmse_functional)
+  hhadata2015.seperated$RMSE_Functional_Severity[i] <- rmse_functional
+  hhadata2015.seperated$prediction_functional[i] <- prediction_functional
+  
+  #Model using only Clinical Severity
+  lm_model_clinical <- lm(Average.HHA.Medicare.Payment.Amount ~ Clinical_Severity_Level, data = row_removed)
+  prediction_clinical <- predict(lm_model_clinical, newdata = hhadata2015.seperated[i, ])
+  rmse_clinical <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_clinical)^2)
+  rmse_values_clinical <- c(rmse_values_clinical, rmse_clinical)
+  hhadata2015.seperated$RMSE_Clinical_Severity[i] <- rmse_clinical
+  hhadata2015.seperated$prediction_clinical[i] <- prediction_clinical
+  
+  #Model using Therapies
+  lm_model_therapies <- lm(Average.HHA.Medicare.Payment.Amount ~ Therapies, data = row_removed)
+  prediction_therapies <- predict(lm_model_therapies, newdata = hhadata2015.seperated[i, ])
+  rmse_therapies <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_therapies)^2)
+  rmse_values_therapies <- c(rmse_values_therapies, rmse_therapies)
+  hhadata2015.seperated$RMSE_Therapies[i] <- rmse_therapies
+  hhadata2015.seperated$prediction_therapies[i] <- prediction_therapies
+  
+  #Model using Therapies + Clinical
+  lm_model_therapies_clinical <- lm(Average.HHA.Medicare.Payment.Amount ~ Therapies + Clinical_Severity_Level, data = row_removed)
+  prediction_therapies_clinical <- predict(lm_model_therapies_clinical, newdata = hhadata2015.seperated[i, ])
+  rmse_therapies_clinical <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_therapies_clinical)^2)
+  rmse_values_therapies_clinical <- c(rmse_values_therapies_clinical, rmse_therapies_clinical)
+  hhadata2015.seperated$RMSE_Therapies_and_Clinical[i] <- rmse_therapies_clinical
+  hhadata2015.seperated$prediction_therapies_and_clinical[i] <- prediction_therapies_clinical
+  
+  #Model using Therapies + Functional
+  lm_model_therapies_functional <- lm(Average.HHA.Medicare.Payment.Amount ~ Therapies + Functional_Severity_Level, data = row_removed)
+  prediction_therapies_functional <- predict(lm_model_therapies_functional, newdata = hhadata2015.seperated[i, ])
+  rmse_therapies_functional <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_therapies_functional)^2)
+  rmse_values_therapies_functional <- c(rmse_values_therapies_functional, rmse_therapies_functional)
+  hhadata2015.seperated$RMSE_Therapies_and_Functional[i] <- rmse_therapies_functional
+  hhadata2015.seperated$prediction_therapies_and_functional[i] <- prediction_therapies_functional
+  
+  #Model using Therapies + Service
+  lm_model_therapies_service <- lm(Average.HHA.Medicare.Payment.Amount ~ Therapies + Service_Severity_Level, data = row_removed)
+  prediction_therapies_service <- predict(lm_model_therapies_service, newdata = hhadata2015.seperated[i, ])
+  rmse_therapies_service <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_therapies_service)^2)
+  rmse_values_therapies_service <- c(rmse_values_therapies_service, rmse_therapies_service)
+  hhadata2015.seperated$RMSE_Therapies_and_Service[i] <- rmse_therapies_service
+  hhadata2015.seperated$prediction_therapies_and_service[i] <- prediction_therapies_service
+  
+  #Model using all variables
+  lm_model_all_var <- lm(Average.HHA.Medicare.Payment.Amount ~ Therapies + Service_Severity_Level + Clinical_Severity_Level 
+                         + Functional_Severity_Level, data = row_removed)
+  prediction_all_var <- predict(lm_model_all_var, newdata = hhadata2015.seperated[i, ])
+  rmse_all_var <- ((hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount[i] - prediction_all_var)^2)
+  rmse_values_all_var <- c(rmse_values_all_var, rmse_all_var)
+  hhadata2015.seperated$RMSE_All_Variables[i] <- rmse_all_var
+  hhadata2015.seperated$prediction_all_variables[i] <- prediction_all_var
+}
+
+average_rmse_severities <- sqrt(mean(rmse_values_severities))
+average_rmse_empty <- sqrt(mean(rmse_values_empty))
+average_rmse_service <- sqrt(mean(rmse_values_service))
+average_rmse_functional <- sqrt(mean(rmse_values_functional))
+average_rmse_clinical <- sqrt(mean(rmse_values_clinical))
+average_rmse_therapies <- sqrt(mean(rmse_values_therapies))
+average_rmse_therapies_clinical <- sqrt(mean(rmse_values_therapies_clinical))
+average_rmse_therapies_functional <- sqrt(mean(rmse_values_therapies_functional))
+average_rmse_therapies_service <- sqrt(mean(rmse_values_therapies_service))
+average_rmse_all_var<- sqrt(mean(rmse_values_all_var))
+
+print(paste("Average Root Mean Squared Error (RMSE) for Empty Model from Cross-Validation:", average_rmse_empty))
+print(paste("Average Root Mean Squared Error (RMSE) for Severities Model from Cross-Validation:", average_rmse_severities))
+print(paste("Average Root Mean Squared Error (RMSE) for Service Severity Model from Cross-Validation:", average_rmse_service))
+print(paste("Average Root Mean Squared Error (RMSE) for Functional Severity Model from Cross-Validation:", average_rmse_functional))
+print(paste("Average Root Mean Squared Error (RMSE) for Clinical Severity Model from Cross-Validation:", average_rmse_clinical))
+print(paste("Average Root Mean Squared Error (RMSE) for Therapies Model from Cross-Validation:", average_rmse_therapies))
+print(paste("Average Root Mean Squared Error (RMSE) for Therapies and Clinical Severity Model from Cross-Validation:", average_rmse_therapies_clinical))
+print(paste("Average Root Mean Squared Error (RMSE) for Therapies and Functional Severity Model from Cross-Validation:", average_rmse_therapies_functional))
+print(paste("Average Root Mean Squared Error (RMSE) for Therapies and Service Severity Model from Cross-Validation:", average_rmse_therapies_service))
+print(paste("Average Root Mean Squared Error (RMSE) for all varibales from Cross-Validation:", average_rmse_all_var))
+```
+
+```{r}
+scatterplot_all_vars <- ggplot(hhadata2015.seperated, aes(x = Average.HHA.Medicare.Payment.Amount, y = prediction_all_variables)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual HHA Medicare Payment Amount", y = "Predicted HHA Medicare Payment Amount") +
+  ggtitle("Scatterplot with Prediction Line - Therapy Visists and 3 Levels Model") +
+  theme_minimal()
+
+ggsave(filename = "scatterplot_all_vars.jpeg", plot = scatterplot_all_vars, width = 7, height = 5, dpi = 300)
+
+selected_hhrg_codes <- c("1AFK", "1CGM", "2AHL", "2CHL", "3AGN", "3BHP", "3CHL", "4BGM", "4CGK", "5CFK")
+
+selected_data <- hhadata2015.seperated %>% 
+  filter(HHRG %in% selected_hhrg_codes)
+
+
+bar_plot_therapy_visits <- ggplot(selected_data, aes(x = HHRG, y = `Therapies`)) +
+  geom_bar(stat = "identity") +
+  labs(x = "HHRG", y = "Expected Therapy Visits") +
+  ggtitle("Bar Plot for Expected Therapy Visits (Selected HHRG Codes)") +
+  theme_minimal()
+
+ggsave(filename = "bar_plot_therapy_visits.jpeg", plot = bar_plot_therapy_visits, width = 7, height = 5, dpi = 300)
+
+scatterplot_severities <- ggplot(hhadata2015.seperated, aes(x = Average.HHA.Medicare.Payment.Amount, y = prediction_severities)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual HHA Medicare Payment Amount", y = "Predicted HHA Medicare Payment Amount") +
+  ggtitle("Scatterplot with Prediction Line - Severities Model") +
+  theme_minimal()
+```
+
+
+
+
+```{r}
+rmse_data <- tibble(
+  Description = c(
+    "Empty Model", "Service, Functional, and Clinical Severity Level Model", "Service Utilization Level Model", "Functional Status Level Model",
+    "Clinical Severity Level Model", "Therapy Visists Model", "Therapy Visists and Clinical Service Level Model",
+    "Therapy Visists and Functional Status Level Model", "Therapy Visists and Service Utilization Level Model", "Therapy Visists and All Three Levels Model"
+  ),
+  RMSE = round(c(
+    average_rmse_empty, average_rmse_severities, average_rmse_service, average_rmse_functional,
+    average_rmse_clinical, average_rmse_therapies, average_rmse_therapies_clinical,
+    average_rmse_therapies_functional, average_rmse_therapies_service, average_rmse_all_var
+  ), 2)
+)
+
+rmse_data <- arrange(rmse_data, desc(RMSE))
+rmse_data$RMSE <- paste0("$", rmse_data$RMSE)
+rmse_kable_table <- kable(rmse_data, format = "html", caption = "RMSE Values For Linear Models", linesep = "<br>", table.attr = 'style="border-collapse: collapse; width: 100%;"',
+  row.attr = 'style="border-bottom: 2px solid black;"')
+cat(rmse_kable_table, file = "rmse_table.html")
+rmse_kable_table
+```
+
+
+
+```{r, eval = F}
+
+#Creating residual plots for the different types of severity
+
+hhadata2015.seperated$residuals <- hhadata2015.seperated$Average.HHA.Medicare.Payment.Amount - hhadata2015.seperated$Predictions
+
+plot_data1 <- ggplot(hhadata2015.seperated, aes(x = Service_Severity_Level, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(x = "Service Severity Level", y = "Residuals") +
+  ggtitle("Linear Model Residuals") +
+  theme_minimal()
+
+plot_data2 <- ggplot(hhadata2015.seperated, aes(x = Functional_Severity_Level, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(x = "Functional Severity Level", y = "Residuals") +
+  ggtitle("Linear Model Residuals") +
+  theme_minimal()
+
+plot_data3 <- ggplot(hhadata2015.seperated, aes(x = Clinical_Severity_Level, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(x = "Clinical Severity Level", y = "Residuals") +
+  ggtitle("Linear Model Residuals") +
+  theme_minimal()
+
+```
+
+
+
+
+```{r, eval = F}
+#Combining into one plot
+combined_data <- bind_rows(
+  data.frame(variable = "Service_Severity_Level", hhadata2015.seperated),
+  data.frame(variable = "Functional_Severity_Level", hhadata2015.seperated),
+  data.frame(variable = "Clinical_Severity_Level", hhadata2015.seperated)
+)
+
+# Create the overlapped plot
+ggplot(hhadata2015.seperated, aes(x = as.numeric(Service_Severity_Level), y = residuals, color = "Service_Severity_Level")) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(x = "Severity Level", y = "Residuals") +
+  ggtitle("Linear Model Residuals") +
+  scale_x_continuous(breaks = 1:4, labels = c("Severity 1", "Severity 2", "Severity 3", "Severity 4")) +
+  theme_minimal() +
+  geom_point(data = hhadata2015.seperated, aes(x = as.numeric(Functional_Severity_Level), y = residuals, color = "Functional_Severity_Level")) +
+  geom_point(data = hhadata2015.seperated, aes(x = as.numeric(Clinical_Severity_Level), y = residuals, color = "Clinical_Severity_Level")) +
+  scale_color_manual(name = "Severity Levels", values = c("Service_Severity_Level" = "blue", "Functional_Severity_Level" = "green", "Clinical_Severity_Level" = "orange"))
+
+
+  
+```
+

@@ -1,0 +1,15 @@
+https://resdac.org/sites/datadocumentation.resdac.org/files/CMS%20Part%20A%20and%20Part%20B%20Price%20%28Payment%29%20Standardization%20-%20Basics%20%28updated%20May%202022%29.pdf
+
+Goes over how medicare costs are determinded
+
+http://www.nahc.org/wp-content/uploads/2017/10/CodingTerminology.pdf
+
+Described HHRG's
+
+https://www.axxess.com/blog/billing/how-the-hhrg-will-look-under-pdgm/
+
+Talks more about hhrg's and what the different varaibles mean
+
+https://www2.ccwdata.org/web/guest/home/
+
+This is where our data come from
